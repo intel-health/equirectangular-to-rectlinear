@@ -1,3 +1,9 @@
+# Fork
+This fork of https://github.com/rfn123/equirectangular-to-rectlinear/tree/master adds modifications to time the amount
+of time taken to do 100 calls to the conversion function.  It uses a large image that is consisent with other work described in the Blog series related to
+optimizing equirectangular conversion to rectlinear views.  The initial blog can be found at
+https://intel-health.github.io/optimizing-equirectangular-conversion/1-Introduction%20to%20360%20Degree%20Representation/index.html.
+
 # Extract rectlinear image from panorama
 
 **Disclaimer:** The code merely concentrates on how to obtain a rectlinear image (undistorted for our human eye) manually without fancy 3D rendering and texture mapping. It is not optimized to be efficient, just a small experiment project to understand the theory better.

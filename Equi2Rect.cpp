@@ -1,25 +1,23 @@
 #include "Equi2Rect.hpp"
-#include <yaml-cpp/yaml.h>
 #include <math.h>
+#include <chrono>>
 
 Equi2Rect::Equi2Rect()
 {
-    YAML::Node config = YAML::LoadFile("config.yaml");
-
     // viewport size
-    viewport.width = config["viewport"]["width"].as<int>();
-    viewport.height = config["viewport"]["height"].as<int>();
+    viewport.width = 1080;
+    viewport.height = 540;
 
     // specify viewing direction
-    viewport.pan_angle = config["viewport"]["pan_angle"].as<double>();
-    viewport.tilt_angle = config["viewport"]["tilt_angle"].as<double>();
-    viewport.roll_angle = config["viewport"]["roll_angle"].as<double>();
+    viewport.pan_angle = 0;
+    viewport.tilt_angle = 0;
+    viewport.roll_angle = 0;
 
     // create rotation matrix
     Rot = eul2rotm(viewport.tilt_angle, viewport.pan_angle, viewport.roll_angle);
 
     // specify focal length of the final pinhole image
-    focal_length = config["camera"]["focal_length"].as<int>();
+    focal_length = 672;
     ;
 
     // create camera matrix K
@@ -27,8 +25,11 @@ Equi2Rect::Equi2Rect()
          0, focal_length, viewport.height / 2,
          0, 0, 1);
 
+#ifdef CACHE_ROT_KINV
+    RotKinv = Rot * K.inv();
+#endif
     // read src image
-    img_src = cv::imread(config["files"]["img_src_path"].as<std::string>(), cv::IMREAD_COLOR);
+    img_src = cv::imread("..\\images\\IMG_20230629_082736_00_095.jpg", cv::IMREAD_COLOR);
     if (img_src.empty())
     {
         throw std::invalid_argument("Error: Could not load image!");
@@ -36,13 +37,23 @@ Equi2Rect::Equi2Rect()
 
     // initialize result image
     img_dst = cv::Mat(viewport.height, viewport.width, CV_8UC3, cv::Scalar(0, 0, 0));
-    img_dst_path = config["files"]["img_dst_path"].as<std::string>();
 }
 
 auto Equi2Rect::save_rectlinear_image() -> void
 {
-    this->bilinear_interpolation();
-    cv::imwrite(img_dst_path, img_dst);
+    std::chrono::high_resolution_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+    int iterations = 100;
+
+    for (int i = 0; i < iterations; i++)
+    {
+        viewport.pan_angle = i % 360;
+        this->bilinear_interpolation();
+    }
+    std::chrono::high_resolution_clock::time_point stopTime = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> aveDuration = std::chrono::duration<double>(stopTime - startTime) / iterations;
+    printf("Average for %d frames %12.8fs %12.5fms %12.3fus %12.8f FPS\n", iterations, aveDuration, aveDuration * 1000.0, aveDuration * 1000000.0, 1.0 / (aveDuration.count() * std::chrono::duration<double>::period::num / std::chrono::duration<double>::period::den));
+
+    cv::imwrite("..\\images\\IMG_20230629_082736_00_095_rect.jpg", img_dst);
 }
 
 auto Equi2Rect::show_rectlinear_image() -> void
@@ -76,8 +87,11 @@ auto Equi2Rect::eul2rotm(double rotx, double roty, double rotz) -> cv::Mat
 auto Equi2Rect::reprojection(int x_img, int y_img) -> cv::Vec2d
 {
     cv::Mat xyz = (cv::Mat_<double>(3, 1) << (double)x_img, (double)y_img, 1);
+#ifdef CACHE_ROT_KINV
+    cv::Mat ray3d = RotKinv * xyz / norm(xyz);
+#else
     cv::Mat ray3d = Rot * K.inv() * xyz / norm(xyz);
-
+#endif
     // get 3d spherical coordinates
     double xp = ray3d.at<double>(0);
     double yp = ray3d.at<double>(1);

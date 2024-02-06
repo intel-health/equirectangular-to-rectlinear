@@ -5,6 +5,9 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 
+#define M_PI 3.1415926535897932384626433832795
+//#define CACHE_ROT_KINV
+
 struct ViewPortSettings
 {
     double pan_angle;
@@ -28,11 +31,14 @@ private:
 
     ViewPortSettings viewport;
     int focal_length;
+#ifdef CACHE_ROT_KINV
+    cv::Mat RotKinv;
+#endif
     cv::Mat Rot;
     cv::Mat K;
     cv::Mat img_src;
     cv::Mat img_dst;
-    std::string img_dst_path;
+    //std::string img_dst_path;
 };
 
 #endif
